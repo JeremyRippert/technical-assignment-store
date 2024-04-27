@@ -125,6 +125,17 @@ describe("Nested Store Operations", () => {
     cStore.write("deep", entries);
     expect(store.read("deep:store:deep:store:value")).toBe("value");
   });
+
+  it("should be able to loop on a store with writeEntries", () => {
+    const store = new Store();
+    const entries: JSONObject = {
+      deep: { value: "value", store: { value: "value" } },
+    };
+    store.writeEntries(entries);
+    const cStore = store.read("deep:store") as Store;
+    cStore.write("deep", entries);
+    expect(store.read("deep:store:deep:store:value")).toBe("value");
+  });
 });
 
 /*

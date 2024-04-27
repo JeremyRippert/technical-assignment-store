@@ -1,7 +1,7 @@
 import { JSONArray, JSONObject, JSONPrimitive } from "./json-types";
 import get from "lodash/get";
 import set from "lodash/set";
-import cloneDeep from "lodash/cloneDeep";
+// import { createStore } from "./createStore";
 
 export type Permission = "r" | "w" | "rw" | "none";
 
@@ -112,12 +112,28 @@ export class Store implements IStore {
     }
 
     if (segments.length === 1) {
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        !(value instanceof Array)
+      ) {
+        if (value instanceof Store) {
+          set(this, firstSegment, value);
+          return this;
+        }
+
+        set(this, firstSegment, createStore(this.defaultPolicy, value));
+        return this;
+      }
+
       set(this, firstSegment, value);
       return this;
     }
 
-    if (get(this, firstSegment) instanceof Store) {
-      return get(this, firstSegment).write(restOfPath, value);
+    const first = get(this, firstSegment);
+
+    if (first instanceof Store) {
+      return first.write(restOfPath, value);
     }
 
     return this.write(restOfPath, value);
@@ -143,16 +159,40 @@ export class Store implements IStore {
   entries(): JSONObject {
     const result: JSONObject = {};
     for (const key in this) {
-      // Check if the key is allowed to be read using the allowedToRead method
       if (this.allowedToRead(key)) {
         const value = this[key];
-        // Ensure the value is serializable and not a function or another Store
         if (typeof value !== "function" && !(value instanceof Store)) {
-          // @ts-expect-error
-          result[key] = value;
+          set(result, key, value);
         }
       }
     }
     return result;
   }
 }
+
+export class GenericStore extends Store {
+  constructor(defaultPolicy: Permission, entries: JSONObject) {
+    super();
+    this.defaultPolicy = defaultPolicy;
+
+    Object.keys(entries).forEach((key) => {
+      const value = entries[key];
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        !(value instanceof Array)
+      ) {
+        set(this, key, new GenericStore(defaultPolicy, value as JSONObject));
+      } else {
+        set(this, key, value);
+      }
+    });
+  }
+}
+
+export const createStore = (
+  defaultPolicy: Permission,
+  entries: JSONObject
+): Store => {
+  return new GenericStore(defaultPolicy, entries);
+};
