@@ -28,10 +28,13 @@ Timer: 2:02
 
 In order to make the test suite run, I needed to create a `createStore` that would create the store directly in `write`
 
+All tests PASS
+
+Timer: 2:32
+
 Adding a test case
 
 ```ts
-
   it("should be able to loop on a store with writeEntries", () => {
     const store = new Store();
     const entries: JSONObject = {
@@ -44,4 +47,6 @@ Adding a test case
   });
 ```
 
-To make sure the implementation is correct
+To "fix" the implementation of `writeEntries`
+
+Timer: 2"35

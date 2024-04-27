@@ -142,17 +142,7 @@ export class Store implements IStore {
   writeEntries(entries: JSONObject): void {
     Object.keys(entries).forEach((key) => {
       const value = entries[key];
-      if (
-        typeof value === "object" &&
-        value !== null &&
-        !(value instanceof Array)
-      ) {
-        Object.keys(value).forEach((subKey) => {
-          this.write(`${key}:${subKey}`, value[subKey]);
-        });
-      } else {
-        this.write(key, value);
-      }
+      this.write(key, value);
     });
   }
 

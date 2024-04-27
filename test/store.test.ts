@@ -133,7 +133,7 @@ describe("Nested Store Operations", () => {
     };
     store.writeEntries(entries);
     const cStore = store.read("deep:store") as Store;
-    cStore.write("deep", entries);
+    cStore.writeEntries(entries);
     expect(store.read("deep:store:deep:store:value")).toBe("value");
   });
 });
