@@ -67,6 +67,10 @@ export class Store implements IStore {
   }
 
   read(path: string): StoreResult {
+    if (path === "") {
+      return this;
+    }
+
     const segments = path.split(":");
     const firstSegment = segments[0];
     const restOfPath = segments.slice(1).join(":");
@@ -79,24 +83,23 @@ export class Store implements IStore {
 
     if (first instanceof Store) {
       return first.read(restOfPath);
-    } else if (typeof first === "function") {
+    }
+
+    if (typeof first === "function") {
       const resultFromFunction = first();
       if (resultFromFunction instanceof Store) {
         return resultFromFunction.read(restOfPath);
-      } else {
-        throw new Error(
-          `Function at path: ${firstSegment} did not return a Store`
-        );
       }
-    } else {
-      const dotPath = path.replace(/:/g, ".");
-      const result = get(this, dotPath);
-      if (result === undefined) {
-        throw new Error(`No value found at path: ${dotPath}`);
-      }
-
-      return result;
+      throw new Error(
+        `Function at path: ${firstSegment} did not return a Store`
+      );
     }
+
+    if (segments.length === 1) {
+      return first;
+    }
+
+    return this.read(restOfPath);
   }
 
   write(path: string, value: StoreValue): StoreValue {
@@ -108,13 +111,16 @@ export class Store implements IStore {
       throw new Error(`Access denied for writing to path: ${path}`);
     }
 
-    if (get(this, firstSegment) instanceof Store) {
-      return get(this, firstSegment).write(restOfPath, value);
-    } else {
-      const dotPath = path.replace(/:/g, ".");
-      set(this, dotPath, value);
+    if (segments.length === 1) {
+      set(this, firstSegment, value);
       return this;
     }
+
+    if (get(this, firstSegment) instanceof Store) {
+      return get(this, firstSegment).write(restOfPath, value);
+    }
+
+    return this.write(restOfPath, value);
   }
 
   writeEntries(entries: JSONObject): void {

@@ -117,7 +117,7 @@ describe("Nested Store Operations", () => {
     expect(store.read("b:c")).toBe("value2");
   });
 
-  xit("should be able to loop on a store", () => {
+  it("should be able to loop on a store", () => {
     const store = new Store();
     const entries: JSONObject = { value: "value", store: { value: "value" } };
     store.write("deep", entries);
