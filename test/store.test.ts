@@ -125,6 +125,39 @@ describe("Nested Store Operations", () => {
     cStore.write("deep", entries);
     expect(store.read("deep:store:deep:store:value")).toBe("value");
   });
+
+  it("should be able to loop on a store and return entries", () => {
+    const store = new Store();
+    const entries: JSONObject = { value: "value", store: { value: "value" } };
+    store.write("deep", entries);
+    const cStore = store.read("deep:store") as Store;
+    cStore.write("deep", entries);
+    expect(store.entries()).toEqual({
+      deep: {
+        value: "value",
+        store: {
+          deep: {
+            value: "value",
+            store: {
+              value: "value",
+            },
+          },
+          value: "value",
+        },
+      },
+    });
+  });
+
+  it("should be able to loop on a store with writeEntries", () => {
+    const store = new Store();
+    const entries: JSONObject = {
+      deep: { value: "value", store: { value: "value" } },
+    };
+    store.writeEntries(entries);
+    const cStore = store.read("deep:store") as Store;
+    cStore.writeEntries(entries);
+    expect(store.read("deep:store:deep:store:value")).toBe("value");
+  });
 });
 
 /*
@@ -323,7 +356,7 @@ describe("Test Store - Permission Inheritance", () => {
       @Restrict("r")
       public parentProp = lazy(() => new ChildStore());
     }
-    class ChildStore extends ParentStore { }
+    class ChildStore extends ParentStore {}
     const baseChildStore = new ChildStore();
     const nestedChildStore = baseChildStore.read(
       "parentProp:parentProp:parentProp"

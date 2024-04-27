@@ -1,4 +1,6 @@
 import { JSONArray, JSONObject, JSONPrimitive } from "./json-types";
+import get from "lodash/get";
+import set from "lodash/set";
 
 export type Permission = "r" | "w" | "rw" | "none";
 
@@ -20,33 +22,177 @@ export interface IStore {
   entries(): JSONObject;
 }
 
-export function Restrict(...params: unknown[]): any {
+const FORBIDDEN_PATHS = ["defaultPolicy"];
+
+export function Restrict(policy: Permission = "none") {
+  return function (target: any, propertyKey: string) {
+    if (!target._accessPolicies) {
+      target._accessPolicies = {};
+    }
+    target._accessPolicies[propertyKey] = policy;
+  };
 }
 
 export class Store implements IStore {
   defaultPolicy: Permission = "rw";
+  _accessPolicies?: Record<string, Permission>;
 
-  allowedToRead(key: string): boolean {
-    throw new Error("Method not implemented.");
+  allowedToRead(path: string): boolean {
+    if (FORBIDDEN_PATHS.includes(path)) return false;
+    const segments = path.split(":");
+    const firstSegment = segments[0];
+    const first = get(this, firstSegment);
+    if (first instanceof Store) {
+      return first.defaultPolicy === "r" || first.defaultPolicy === "rw";
+    }
+    const policy = get(
+      this,
+      `_accessPolicies.${segments[0]}`,
+      this.defaultPolicy
+    );
+    return policy === "r" || policy === "rw";
   }
 
-  allowedToWrite(key: string): boolean {
-    throw new Error("Method not implemented.");
+  allowedToWrite(path: string): boolean {
+    if (FORBIDDEN_PATHS.includes(path)) return false;
+    const segments = path.split(":");
+    const firstSegment = segments[0];
+    const first = get(this, firstSegment);
+    if (first instanceof Store) {
+      return first.defaultPolicy === "w" || first.defaultPolicy === "rw";
+    }
+    const policy = get(
+      this,
+      `_accessPolicies.${segments[0]}`,
+      this.defaultPolicy
+    );
+    return policy === "w" || policy === "rw";
   }
 
   read(path: string): StoreResult {
-    throw new Error("Method not implemented.");
+    if (path === "") {
+      return this;
+    }
+
+    const segments = path.split(":");
+    const firstSegment = segments[0];
+    const restOfPath = segments.slice(1).join(":");
+
+    if (!this.allowedToRead(firstSegment)) {
+      throw new Error(`Access denied for reading path: ${path}`);
+    }
+
+    const first = get(this, firstSegment);
+
+    if (first instanceof Store) {
+      return first.read(restOfPath);
+    }
+
+    if (typeof first === "function") {
+      if (first.length === 0) {
+        const resultFromFunction = first();
+        if (resultFromFunction instanceof Store) {
+          return resultFromFunction.read(restOfPath);
+        }
+        return undefined;
+      } else {
+        return undefined;
+      }
+    }
+
+    if (segments.length === 1) {
+      return first;
+    }
+
+    return this.read(restOfPath);
   }
 
   write(path: string, value: StoreValue): StoreValue {
-    throw new Error("Method not implemented.");
+    const segments = path.split(":");
+    const firstSegment = segments[0];
+    const restOfPath = segments.slice(1).join(":");
+
+    if (!this.allowedToWrite(firstSegment)) {
+      throw new Error(`Access denied for writing to path: ${path}`);
+    }
+
+    if (segments.length === 1) {
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        !(value instanceof Array)
+      ) {
+        if (value instanceof Store) {
+          set(this, firstSegment, value);
+          return this;
+        }
+
+        set(this, firstSegment, createStore(this.defaultPolicy, value));
+        return this;
+      }
+
+      set(this, firstSegment, value);
+      return this;
+    }
+
+    const first = get(this, firstSegment);
+
+    if (first instanceof Store) {
+      return first.write(restOfPath, value);
+    }
+
+    return this.write(restOfPath, value);
   }
 
   writeEntries(entries: JSONObject): void {
-    throw new Error("Method not implemented.");
+    Object.keys(entries).forEach((key) => {
+      const value = entries[key];
+      this.write(key, value);
+    });
   }
 
   entries(): JSONObject {
-    throw new Error("Method not implemented.");
+    const result: JSONObject = {};
+    for (const key in this) {
+      if (this.allowedToRead(key)) {
+        const value = this.read(key);
+        if (value === undefined) {
+          continue;
+        }
+        if (value instanceof Store) {
+          set(result, key, value.entries());
+        } else {
+          set(result, key, value);
+        }
+      }
+    }
+    return result;
   }
 }
+
+export class GenericStore extends Store {
+  constructor(defaultPolicy: Permission, entries: JSONObject) {
+    super();
+    this.defaultPolicy = defaultPolicy;
+
+    Object.keys(entries).forEach((key) => {
+      const value = entries[key];
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        !(value instanceof Array)
+      ) {
+        set(this, key, new GenericStore(defaultPolicy, value as JSONObject));
+      } else {
+        set(this, key, value);
+      }
+    });
+  }
+}
+
+export const createStore = (
+  defaultPolicy: Permission,
+  entries: JSONObject
+): Store => {
+  return new GenericStore(defaultPolicy, entries);
+};
