@@ -34,7 +34,7 @@ Given the heavy logic requirements of this, it will be more efficient to setup a
 
 Now, the question is, how do permissions cascade in nested store?
 
-If `expect(adminStore.read("user:name")).toBe("John Doe");` and 
+If `expect(adminStore.read("user:name")).toBe("John Doe");` and
 
 ```ts
 @Restrict("r")
@@ -48,12 +48,12 @@ then it can either mean that `user:name` should be `"r"` or `"rw"`
 
 Going too fast into the implementation made me lose a ton of time, I'm already at 48". I should write the requirements on paper.
 
-Restarting from scratch, realizing I didn't understand the principle of store nesting. 
+Had to restart from scratch, realizing I didn't understand the principle of store nesting at first.
 
 Adding `lodash` to get and set nested values.
 
 Last test remaining: `should be able to loop on a store`
 
-Timer: 1:15
+Timer: 1"15
 
 Skipping loop for now as it seems to be a question much harder than others.

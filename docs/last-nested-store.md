@@ -50,3 +50,35 @@ Adding a test case
 To "fix" the implementation of `writeEntries`
 
 Timer: 2"35
+
+Added a test case
+
+```ts
+  it("should be able to loop on a store and return entries", () => {
+    const store = new Store();
+    const entries: JSONObject = { value: "value", store: { value: "value" } };
+    store.write("deep", entries);
+    const cStore = store.read("deep:store") as Store;
+    cStore.write("deep", entries);
+    expect(store.entries()).toEqual({
+      deep: {
+        value: "value",
+        store: {
+          deep: {
+            value: "value",
+            store: {
+              value: "value",
+            },
+          },
+          value: "value",
+        },
+      },
+    });
+  });
+```
+
+To make sure `entries` works properly on nested stores.
+
+Timer: 2"58
+
+Could propably find a better way to make `defaultPolicy` not read/writable than using `const FORBIDDEN_PATHS = ["defaultPolicy"];` but I'm at the 3 hours mark, time to submit the assignment, and the naïve approach of adding `@Restrict()` broke some tests.

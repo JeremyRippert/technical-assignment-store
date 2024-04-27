@@ -1,7 +1,6 @@
 import { JSONArray, JSONObject, JSONPrimitive } from "./json-types";
 import get from "lodash/get";
 import set from "lodash/set";
-// import { createStore } from "./createStore";
 
 export type Permission = "r" | "w" | "rw" | "none";
 
@@ -23,6 +22,8 @@ export interface IStore {
   entries(): JSONObject;
 }
 
+const FORBIDDEN_PATHS = ["defaultPolicy"];
+
 export function Restrict(policy: Permission = "none") {
   return function (target: any, propertyKey: string) {
     if (!target._accessPolicies) {
@@ -37,6 +38,7 @@ export class Store implements IStore {
   _accessPolicies?: Record<string, Permission>;
 
   allowedToRead(path: string): boolean {
+    if (FORBIDDEN_PATHS.includes(path)) return false;
     const segments = path.split(":");
     const firstSegment = segments[0];
     const first = get(this, firstSegment);
@@ -52,6 +54,7 @@ export class Store implements IStore {
   }
 
   allowedToWrite(path: string): boolean {
+    if (FORBIDDEN_PATHS.includes(path)) return false;
     const segments = path.split(":");
     const firstSegment = segments[0];
     const first = get(this, firstSegment);
@@ -86,13 +89,15 @@ export class Store implements IStore {
     }
 
     if (typeof first === "function") {
-      const resultFromFunction = first();
-      if (resultFromFunction instanceof Store) {
-        return resultFromFunction.read(restOfPath);
+      if (first.length === 0) {
+        const resultFromFunction = first();
+        if (resultFromFunction instanceof Store) {
+          return resultFromFunction.read(restOfPath);
+        }
+        return undefined;
+      } else {
+        return undefined;
       }
-      throw new Error(
-        `Function at path: ${firstSegment} did not return a Store`
-      );
     }
 
     if (segments.length === 1) {
@@ -150,8 +155,13 @@ export class Store implements IStore {
     const result: JSONObject = {};
     for (const key in this) {
       if (this.allowedToRead(key)) {
-        const value = this[key];
-        if (typeof value !== "function" && !(value instanceof Store)) {
+        const value = this.read(key);
+        if (value === undefined) {
+          continue;
+        }
+        if (value instanceof Store) {
+          set(result, key, value.entries());
+        } else {
           set(result, key, value);
         }
       }

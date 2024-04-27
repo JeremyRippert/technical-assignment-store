@@ -1,6 +1,6 @@
 # Nested inheritance
 
-With simple edge case handling 
+With simple edge case handling
 
 ```ts
   read(path: string): StoreResult {

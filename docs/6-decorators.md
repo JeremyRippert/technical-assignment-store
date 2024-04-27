@@ -1,6 +1,6 @@
 # Decorators
 
-With `"include": ["src/**/*.ts"],` in `tsconfig.json`, 
+With `"include": ["src/**/*.ts"],` in `tsconfig.json`,
 
 ```ts
 class TestStore extends Store {
@@ -19,7 +19,6 @@ Argument of type 'ClassFieldDecoratorContext<TestStore, string | undefined> & { 
 After updating to `"include": ["**/*.ts"],`, the TS error disappears.
 
 In order to pass
-
 
 ```ts
 fit("entries method shows restricted properties", () => {
