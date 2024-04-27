@@ -35,7 +35,6 @@ export function Restrict(policy: Permission = "none") {
 export class Store implements IStore {
   defaultPolicy: Permission = "rw";
   _accessPolicies?: Record<string, Permission>;
-  private storeData: JSONObject = {};
 
   allowedToRead(path: string): boolean {
     const segments = path.split(":");
@@ -136,7 +135,18 @@ export class Store implements IStore {
   }
 
   entries(): JSONObject {
-    // Simply return a deep copy of the storeData to avoid direct mutation
-    return cloneDeep(this.storeData);
+    const result: JSONObject = {};
+    for (const key in this) {
+      // Check if the key is allowed to be read using the allowedToRead method
+      if (this.allowedToRead(key)) {
+        const value = this[key];
+        // Ensure the value is serializable and not a function or another Store
+        if (typeof value !== "function" && !(value instanceof Store)) {
+          // @ts-expect-error
+          result[key] = value;
+        }
+      }
+    }
+    return result;
   }
 }
